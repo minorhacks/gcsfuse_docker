@@ -46,3 +46,21 @@ func (v *Volume) Mount(credsPath string) error {
 	v.mounted = true
 	return nil
 }
+
+func (v *Volume) Unmount() error {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+
+	if !v.mounted {
+		return fmt.Errorf("volume is not mounted")
+	}
+
+	cmd := exec.Command("fusermount", "-u", v.hostPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("`fusermount -u` on %q failed. output:\n%s", v.hostPath, output)
+	}
+
+	v.mounted = false
+	return nil
+}

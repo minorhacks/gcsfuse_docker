@@ -124,7 +124,20 @@ func (d *Driver) Mount(r *volume.MountRequest) (*volume.MountResponse, error) {
 }
 
 func (d *Driver) Unmount(r *volume.UnmountRequest) error {
-	return fmt.Errorf("Unmount() not implemented")
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	// Get volume
+	vol, ok := d.vols[r.Name]
+	if !ok {
+		return fmt.Errorf("volume %q not found", r.Name)
+	}
+
+	// Unmount
+	if err := vol.Unmount(); err != nil {
+		return fmt.Errorf("unmount for %q failed: %w", r.Name, err)
+	}
+	return nil
 }
 
 func (d *Driver) Capabilities() *volume.CapabilitiesResponse {
