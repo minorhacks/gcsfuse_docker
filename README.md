@@ -35,3 +35,7 @@ TODO: This section is a work-in-progress.
    ```
 
    TODO: Clarify the parameters in the mount string
+
+## References
+
+* [Docker Volume Plugin Protocol](https://docs.docker.com/engine/extend/plugins_volume/)
