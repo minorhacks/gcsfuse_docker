@@ -15,7 +15,7 @@ const (
 func main() {
 	flag.Parse()
 
-	driver := gcsfuse.NewDriver()
+	driver := gcsfuse.NewLogging(gcsfuse.NewDriver())
 	handler := volume.NewHandler(driver)
 	if err := handler.ServeUnix(DriverName, 0); err != nil {
 		glog.Exitf("Error serving %s.sock: %s", DriverName, err)

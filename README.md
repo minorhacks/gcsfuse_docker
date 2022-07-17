@@ -21,7 +21,7 @@ TODO: This section is a work-in-progress.
 
    ```
    go build ./cmd/gcsfuse_docker
-   sudo ./gcsfuse_docker
+   sudo ./gcsfuse_docker --v=1 --alsologtostderr
    ```
 
 1. Test a mount with a Docker container:

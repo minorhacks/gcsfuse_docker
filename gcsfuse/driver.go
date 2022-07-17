@@ -13,7 +13,7 @@ func NewDriver() *Driver {
 	return &Driver{}
 }
 
-func (d *Driver) Create(r *volume.CreateRequest) error {
+func (d *Driver) Create(r *volume.CreateRequest) (retErr error) {
 	return fmt.Errorf("Create() not implemented")
 }
 
