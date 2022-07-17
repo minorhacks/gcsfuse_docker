@@ -2,6 +2,7 @@ package gcsfuse
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"sync"
 
@@ -11,6 +12,8 @@ import (
 type Driver struct {
 	// root is the path under which mounts are made
 	root string
+	// credsPath is the path to gcloud JSON credentials to pass on to gcsfuse.
+	credsPath string
 
 	// mu protects the vars in this group
 	mu sync.Mutex
@@ -18,9 +21,10 @@ type Driver struct {
 	vols map[string]*Volume
 }
 
-func NewDriver(volumeRoot string, keyPath string) *Driver {
+func NewDriver(volumeRoot string, credsPath string) *Driver {
 	return &Driver{
-		root: volumeRoot,
+		root:      volumeRoot,
+		credsPath: credsPath,
 
 		vols: map[string]*Volume{},
 	}
@@ -41,7 +45,6 @@ func (d *Driver) Create(r *volume.CreateRequest) (retErr error) {
 	// Ensure that all required options are set
 	if err := checkRequiredCreateOptions(r.Options, []string{
 		"bucket",
-		"dir",
 	}); err != nil {
 		return fmt.Errorf("checking options for %q: %w", r.Name, err)
 	}
@@ -53,13 +56,25 @@ func (d *Driver) Create(r *volume.CreateRequest) (retErr error) {
 	}
 	d.vols[r.Name] = vol
 
-	// TODO: Make directory for volume
+	// Make directory for volume
+	if err := os.MkdirAll(vol.hostPath, 0o755); err != nil {
+		return fmt.Errorf("failed to create local mountpoint %q: %w", vol.hostPath, err)
+	}
 
 	return nil
 }
 
 func (d *Driver) List() (*volume.ListResponse, error) {
-	return nil, fmt.Errorf("List() not implemented")
+	var ret []*volume.Volume
+	for name, vol := range d.vols {
+		ret = append(ret, &volume.Volume{
+			Name:       name,
+			Mountpoint: vol.hostPath,
+		})
+	}
+	return &volume.ListResponse{
+		Volumes: ret,
+	}, nil
 }
 
 func (d *Driver) Get(r *volume.GetRequest) (*volume.GetResponse, error) {
@@ -98,7 +113,7 @@ func (d *Driver) Mount(r *volume.MountRequest) (*volume.MountResponse, error) {
 	}
 
 	// Mount volume
-	if err := vol.Mount(); err != nil {
+	if err := vol.Mount(d.credsPath); err != nil {
 		return nil, fmt.Errorf("mount for %q failed: %w", r.Name, err)
 	}
 

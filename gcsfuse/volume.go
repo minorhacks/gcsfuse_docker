@@ -18,7 +18,7 @@ type Volume struct {
 	mounted bool
 }
 
-func (v *Volume) Mount() error {
+func (v *Volume) Mount(credsPath string) error {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
@@ -32,6 +32,8 @@ func (v *Volume) Mount() error {
 	// the volume is mounted if it returns successfully.
 	gcsfuseFlags := []string{
 		"-o=allow_other",
+		"--key-file",
+		credsPath,
 	}
 	cmd := exec.Command("gcsfuse", gcsfuseFlags...)
 	cmd.Args = append(cmd.Args, v.bucket, v.hostPath)
