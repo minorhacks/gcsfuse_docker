@@ -9,6 +9,8 @@ import (
 type Volume struct {
 	// Bucket to mount
 	bucket string
+	// Directory within bucket to use as the root
+	subdir string
 	// Path at which to mount
 	hostPath string
 
@@ -34,6 +36,8 @@ func (v *Volume) Mount(credsPath string) error {
 		"-o=allow_other",
 		"--key-file",
 		credsPath,
+		"--only-dir",
+		v.subdir,
 	}
 	cmd := exec.Command("gcsfuse", gcsfuseFlags...)
 	cmd.Args = append(cmd.Args, v.bucket, v.hostPath)

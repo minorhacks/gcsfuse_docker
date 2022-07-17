@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/docker/go-plugins-helpers/volume"
+	"github.com/golang/glog"
 )
 
 type Driver struct {
@@ -45,6 +46,7 @@ func (d *Driver) Create(r *volume.CreateRequest) (retErr error) {
 	// Ensure that all required options are set
 	if err := checkRequiredCreateOptions(r.Options, []string{
 		"bucket",
+		"subdir",
 	}); err != nil {
 		return fmt.Errorf("checking options for %q: %w", r.Name, err)
 	}
@@ -52,6 +54,7 @@ func (d *Driver) Create(r *volume.CreateRequest) (retErr error) {
 	// Record volume parameters
 	vol := &Volume{
 		bucket:   r.Options["bucket"],
+		subdir:   r.Options["subdir"],
 		hostPath: filepath.Join(d.root, r.Name),
 	}
 	d.vols[r.Name] = vol
@@ -95,11 +98,40 @@ func (d *Driver) Get(r *volume.GetRequest) (*volume.GetResponse, error) {
 }
 
 func (d *Driver) Remove(r *volume.RemoveRequest) error {
-	return fmt.Errorf("Remove() not implemented")
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	// Best-effort discovery of mount directory to delete - in case the driver
+	// was restarted, and Docker is asking about a volume that no longer exists.
+	var path string
+	vol, ok := d.vols[r.Name]
+	if !ok {
+		glog.Warningf("Remove() called for unknown volume: %q", r.Name)
+		path = filepath.Join(d.root, r.Name)
+	} else {
+		path = vol.hostPath
+	}
+
+	if err := os.RemoveAll(path); err != nil {
+		return fmt.Errorf("failed to remove mount path %q: %w", path, err)
+	}
+
+	delete(d.vols, r.Name)
+	return nil
 }
 
 func (d *Driver) Path(r *volume.PathRequest) (*volume.PathResponse, error) {
-	return nil, fmt.Errorf("Path() not implemented")
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	vol, ok := d.vols[r.Name]
+	if !ok {
+		return nil, fmt.Errorf("volume %q not found", r.Name)
+	}
+
+	return &volume.PathResponse{
+		Mountpoint: vol.hostPath,
+	}, nil
 }
 
 func (d *Driver) Mount(r *volume.MountRequest) (*volume.MountResponse, error) {
